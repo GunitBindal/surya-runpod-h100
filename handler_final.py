@@ -6,27 +6,42 @@ from PIL import Image
 
 print("Starting SuryaOCR Handler...", flush=True)
 
-MODEL = None
+FOUNDATION_PREDICTOR = None
+RECOGNITION_PREDICTOR = None
+DETECTION_PREDICTOR = None
 
-def initialize_model():
-    global MODEL
-    if MODEL is None:
-        print("Loading SuryaOCR model... This takes 60-90 seconds.", flush=True)
+def initialize_models():
+    global FOUNDATION_PREDICTOR, RECOGNITION_PREDICTOR, DETECTION_PREDICTOR
+    
+    if FOUNDATION_PREDICTOR is None:
+        print("Loading SuryaOCR models... This takes 60-90 seconds.", flush=True)
         try:
-            from surya.ocr import OCRPredictor
-            MODEL = OCRPredictor()
-            print("✓ Model loaded successfully!", flush=True)
+            from surya.foundation import FoundationPredictor
+            from surya.recognition import RecognitionPredictor
+            from surya.detection import DetectionPredictor
+            
+            print("✓ Loading Foundation model...", flush=True)
+            FOUNDATION_PREDICTOR = FoundationPredictor()
+            
+            print("✓ Loading Recognition model...", flush=True)
+            RECOGNITION_PREDICTOR = RecognitionPredictor(FOUNDATION_PREDICTOR)
+            
+            print("✓ Loading Detection model...", flush=True)
+            DETECTION_PREDICTOR = DetectionPredictor()
+            
+            print("✓ All models loaded successfully!", flush=True)
         except Exception as e:
             print(f"✗ Model loading failed: {e}", flush=True)
             raise
-    return MODEL
+    
+    return RECOGNITION_PREDICTOR, DETECTION_PREDICTOR
 
 def handler(job):
     print(f"Received job: {job.get('id', 'unknown')}", flush=True)
     
     try:
-        # Initialize model on first request
-        model = initialize_model()
+        # Initialize models on first request
+        recognition_predictor, detection_predictor = initialize_models()
 
         # Get input
         job_input = job.get("input", {})
@@ -59,15 +74,25 @@ def handler(job):
 
         # Run OCR
         print(f"Processing {len(images)} image(s) with languages: {languages}", flush=True)
-        predictions = model(images, languages)
+        predictions = recognition_predictor(images, det_predictor=detection_predictor, langs=languages)
         print(f"✓ OCR completed", flush=True)
 
         # Format results
         results = []
         for pred in predictions:
+            text_lines = []
+            for line in pred.text_lines:
+                text_lines.append({
+                    "text": line.text,
+                    "confidence": line.confidence,
+                    "bbox": line.bbox,
+                    "polygon": line.polygon
+                })
+            
             results.append({
-                "text": [line.text for line in pred.text_lines],
-                "boxes": [line.bbox for line in pred.text_lines]
+                "text_lines": text_lines,
+                "page": getattr(pred, 'page', 0),
+                "image_bbox": getattr(pred, 'image_bbox', None)
             })
 
         return {"success": True, "results": results}
