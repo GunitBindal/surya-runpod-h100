@@ -2,49 +2,58 @@
 
 Production-ready SuryaOCR deployment on RunPod H100 GPU with 0.5s per image OCR speed.
 
-## 🚀 Simple 3-Step Setup
+## 🚀 Quick Setup (2 Options)
 
-### 1. Create Template (RunPod Web UI)
+### Option 1: Pre-built Docker Image (RECOMMENDED - Instant Startup)
 
-Go to: **RunPod Console → Serverless → Templates → New Template**
+**Best for production:** Models are pre-downloaded, no cold start delays!
 
-- **Template Name**: `surya-h100`
-- **Container Image**: `runpod/pytorch:2.8.0-py3.11-cuda12.8.1-cudnn-devel-ubuntu22.04`
-- **Docker Command**:
-```bash
-bash -c "pip install --no-cache-dir surya-ocr runpod pillow && curl -sSL https://raw.githubusercontent.com/GunitBindal/surya-runpod-h100/main/handler_final.py -o handler.py && python -u handler.py"
-```
+1. **Build and push custom image:**
+   ```bash
+   ./build_and_push.sh
+   ```
+   This will:
+   - Build Docker image with all models pre-cached (~3GB)
+   - Push to Docker Hub (gbdevelopers/suryaocr-h100:latest)
+   - Models download during build, NOT at runtime
 
-### 2. Deploy Endpoint
+2. **Create RunPod Template:**
+   - Go to: RunPod Console → Serverless → Templates → New Template
+   - Container Image: `gbdevelopers/suryaocr-h100:latest`
+   - Docker Command: (leave empty)
+   - GPU: H100 80GB or H100 PCIe
 
-Go to: **Serverless → Endpoints → New Endpoint**
+3. **Deploy Endpoint:**
+   - Template: Select your template
+   - Active Workers: 1
+   - Max Workers: 1
+   - Endpoint Type: Queue
 
-- **Template**: Select `surya-h100`
-- **GPUs**: H100 80GB or H100 PCIe
-- **Active Workers**: 1 (important!)
-- **Max Workers**: 1
-- **Endpoint Type**: Queue
+**Benefits:**
+- ✅ Instant cold starts (2-3 seconds)
+- ✅ No model download wait time
+- ✅ No pip installs on startup
+- ✅ Production-ready
 
-Click **Deploy**
+### Option 2: GitHub Handler (Simple but Slower)
 
-### 3. Test
+**Good for testing:** Downloads on every worker start.
 
-```python
-import runpod
+1. **Create Template:**
+   - Container Image: `runpod/pytorch:2.8.0-py3.11-cuda12.8.1-cudnn-devel-ubuntu22.04`
+   - Docker Command:
+   ```bash
+   bash -c "pip install --no-cache-dir surya-ocr runpod pillow && curl -sSL https://raw.githubusercontent.com/GunitBindal/surya-runpod-h100/main/handler_final.py -o handler.py && python -u handler.py"
+   ```
 
-runpod.api_key = "YOUR_API_KEY"
-endpoint = runpod.Endpoint("YOUR_ENDPOINT_ID")
+2. **Deploy Endpoint** (same as Option 1, step 3)
 
-# First request takes 60-90s (model download)
-result = endpoint.run({
-    "input": {
-        "images": ["BASE64_IMAGE_STRING"],
-        "languages": ["en"]
-    }
-}).output()
+**Drawbacks:**
+- ⏱️ First request: 60-90 seconds (downloads models)
+- 📦 Installs packages every worker start
+- 💰 Wastes compute time on setup
 
-print(result)
-```
+## 📝 Usage
 
 ## 📋 Key Points
 
