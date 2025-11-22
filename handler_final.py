@@ -2,10 +2,13 @@ import runpod
 import base64
 import io
 import sys
+import os
 import torch
 from PIL import Image
 
 print("Starting SuryaOCR Handler...", flush=True)
+print(f"ENV: RECOGNITION_BATCH_SIZE={os.getenv('RECOGNITION_BATCH_SIZE', 'not set')}", flush=True)
+print(f"ENV: DETECTOR_BATCH_SIZE={os.getenv('DETECTOR_BATCH_SIZE', 'not set')}", flush=True)
 
 # Enable PyTorch optimizations
 torch.set_float32_matmul_precision('high')
@@ -19,10 +22,16 @@ DETECTION_PREDICTOR = None
 
 def initialize_models():
     global FOUNDATION_PREDICTOR, RECOGNITION_PREDICTOR, DETECTION_PREDICTOR
-    
+
     if FOUNDATION_PREDICTOR is None:
         print("Loading SuryaOCR models... This takes 2-3 seconds with pre-cached models.", flush=True)
         try:
+            # Set batch sizes programmatically (fallback + override)
+            from surya import settings
+            settings.RECOGNITION_BATCH_SIZE = int(os.getenv('RECOGNITION_BATCH_SIZE', 1024))
+            settings.DETECTOR_BATCH_SIZE = int(os.getenv('DETECTOR_BATCH_SIZE', 128))
+            print(f"✓ Batch sizes set: RECOGNITION={settings.RECOGNITION_BATCH_SIZE}, DETECTOR={settings.DETECTOR_BATCH_SIZE}", flush=True)
+
             from surya.foundation import FoundationPredictor
             from surya.recognition import RecognitionPredictor
             from surya.detection import DetectionPredictor
@@ -82,8 +91,12 @@ def handler(job):
                 return {"success": False, "error": f"Image {idx+1} decode failed: {str(e)}"}
 
         # Run OCR - Surya automatically detects languages
+        # Batch sizes controlled by RECOGNITION_BATCH_SIZE env var in Dockerfile
         print(f"Processing {len(images)} image(s) with auto language detection", flush=True)
-        predictions = recognition_predictor(images, det_predictor=detection_predictor)
+        predictions = recognition_predictor(
+            images,
+            det_predictor=detection_predictor
+        )
         print(f"✓ OCR completed", flush=True)
 
         # Format results
