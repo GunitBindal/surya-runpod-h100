@@ -38,36 +38,12 @@ RUN pip install --no-cache-dir \
 
 WORKDIR /app
 
-# Copy handler
+# Copy files
 COPY handler_final.py /app/handler.py
+COPY prewarm.py /app/prewarm.py
 
-# Pre-download models AND pre-warm CUDA kernels (with cleanup)
-RUN python3 -c "import torch; \
-from surya.foundation import FoundationPredictor; \
-from surya.recognition import RecognitionPredictor; \
-from surya.detection import DetectionPredictor; \
-print('🚀 Optimizing for H100...', flush=True); \
-torch.set_float32_matmul_precision('high'); \
-torch.backends.cudnn.benchmark = True; \
-torch.backends.cuda.matmul.allow_tf32 = True; \
-print('📥 Downloading Foundation model...', flush=True); \
-fp = FoundationPredictor(); \
-print('📥 Downloading Recognition model...', flush=True); \
-rp = RecognitionPredictor(fp); \
-print('📥 Downloading Detection model...', flush=True); \
-dp = DetectionPredictor(); \
-print('✅ All models cached!', flush=True); \
-print('🔥 Pre-warming CUDA kernels...', flush=True); \
-from PIL import Image; \
-import numpy as np; \
-dummy = Image.fromarray(np.random.randint(0, 255, (512, 512, 3), dtype=np.uint8)); \
-try: \
-    with torch.inference_mode(): \
-        _ = rp([dummy], det_predictor=dp); \
-    print('✅ CUDA kernels pre-compiled!', flush=True); \
-except: \
-    print('⚠️  Pre-warming skipped (will compile on first request)', flush=True); \
-print('🎯 Optimization complete!', flush=True)" && rm -rf /tmp/* /root/.cache/*
+# Pre-download models AND pre-warm CUDA kernels
+RUN python3 /app/prewarm.py && rm -rf /tmp/* /root/.cache/* /app/prewarm.py
 
 # Final cleanup
 RUN rm -rf /tmp/* /root/.cache/* /var/tmp/*
