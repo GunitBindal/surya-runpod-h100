@@ -24,7 +24,7 @@ except ImportError:
 
 # Configuration - Get from environment variable
 RUNPOD_API_KEY = os.environ.get("RUNPOD_API_KEY", "")
-ENDPOINT_ID = os.environ.get("RUNPOD_ENDPOINT_ID", "trwzks58ob70au")
+ENDPOINT_ID = os.environ.get("RUNPOD_ENDPOINT_ID", "qc12vfvnrfq554")
 RUNPOD_URL = f"https://api.runpod.ai/v2/{ENDPOINT_ID}/run"
 STATUS_URL = f"https://api.runpod.ai/v2/{ENDPOINT_ID}/status"
 
