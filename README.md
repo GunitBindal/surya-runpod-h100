@@ -8,22 +8,22 @@ Production-ready SuryaOCR deployment on RunPod H100 GPU with 0.5s per image OCR 
 
 **Best for production:** Models are pre-downloaded, no cold start delays!
 
-1. **Build and push custom image:**
-   ```bash
-   ./build_and_push.sh
-   ```
-   This will:
-   - Build Docker image with all models pre-cached (~3GB)
-   - Push to Docker Hub (gbdevelopers/suryaocr-h100:latest)
-   - Models download during build, NOT at runtime
+The Docker image is automatically built by GitHub Actions and pushed to GitHub Container Registry.
 
-2. **Create RunPod Template:**
+**Just use this image in RunPod:**
+```
+ghcr.io/gunitbindal/surya-runpod-h100:latest
+```
+
+**Setup:**
+
+1. **Create RunPod Template:**
    - Go to: RunPod Console → Serverless → Templates → New Template
-   - Container Image: `gbdevelopers/suryaocr-h100:latest`
+   - Container Image: `ghcr.io/gunitbindal/surya-runpod-h100:latest`
    - Docker Command: (leave empty)
    - GPU: H100 80GB or H100 PCIe
 
-3. **Deploy Endpoint:**
+2. **Deploy Endpoint:**
    - Template: Select your template
    - Active Workers: 1
    - Max Workers: 1
@@ -34,6 +34,7 @@ Production-ready SuryaOCR deployment on RunPod H100 GPU with 0.5s per image OCR 
 - ✅ No model download wait time
 - ✅ No pip installs on startup
 - ✅ Production-ready
+- ✅ Automatically updated on every push to main
 
 ### Option 2: GitHub Handler (Simple but Slower)
 
