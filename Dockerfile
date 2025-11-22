@@ -42,48 +42,32 @@ WORKDIR /app
 COPY handler_final.py /app/handler.py
 
 # Pre-download models AND pre-warm CUDA kernels (with cleanup)
-RUN python3 << 'EOF' && rm -rf /tmp/* /root/.cache/*
-import torch
-from surya.foundation import FoundationPredictor
-from surya.recognition import RecognitionPredictor
-from surya.detection import DetectionPredictor
-
-print('🚀 Optimizing for H100...')
-
-# Enable all optimizations
-torch.set_float32_matmul_precision('high')
-torch.backends.cudnn.benchmark = True
-torch.backends.cuda.matmul.allow_tf32 = True
-
-# Load models
-print('📥 Downloading Foundation model...')
-fp = FoundationPredictor()
-
-print('📥 Downloading Recognition model...')
-rp = RecognitionPredictor(fp)
-
-print('📥 Downloading Detection model...')
-dp = DetectionPredictor()
-
-print('✅ All models cached!')
-
-# Pre-warm with CPU dummy data (saves space, still compiles kernels)
-print('🔥 Pre-warming CUDA kernels...')
-from PIL import Image
-import numpy as np
-
-dummy = Image.fromarray(np.random.randint(0, 255, (512, 512, 3), dtype=np.uint8))
-
-try:
-    # This compiles CUDA kernels at build time
-    with torch.inference_mode():
-        _ = rp([dummy], det_predictor=dp)
-    print('✅ CUDA kernels pre-compiled!')
-except:
-    print('⚠️  Pre-warming skipped (will compile on first request)')
-
-print('🎯 Optimization complete!')
-EOF
+RUN python3 -c "import torch; \
+from surya.foundation import FoundationPredictor; \
+from surya.recognition import RecognitionPredictor; \
+from surya.detection import DetectionPredictor; \
+print('🚀 Optimizing for H100...', flush=True); \
+torch.set_float32_matmul_precision('high'); \
+torch.backends.cudnn.benchmark = True; \
+torch.backends.cuda.matmul.allow_tf32 = True; \
+print('📥 Downloading Foundation model...', flush=True); \
+fp = FoundationPredictor(); \
+print('📥 Downloading Recognition model...', flush=True); \
+rp = RecognitionPredictor(fp); \
+print('📥 Downloading Detection model...', flush=True); \
+dp = DetectionPredictor(); \
+print('✅ All models cached!', flush=True); \
+print('🔥 Pre-warming CUDA kernels...', flush=True); \
+from PIL import Image; \
+import numpy as np; \
+dummy = Image.fromarray(np.random.randint(0, 255, (512, 512, 3), dtype=np.uint8)); \
+try: \
+    with torch.inference_mode(): \
+        _ = rp([dummy], det_predictor=dp); \
+    print('✅ CUDA kernels pre-compiled!', flush=True); \
+except: \
+    print('⚠️  Pre-warming skipped (will compile on first request)', flush=True); \
+print('🎯 Optimization complete!', flush=True)" && rm -rf /tmp/* /root/.cache/*
 
 # Final cleanup
 RUN rm -rf /tmp/* /root/.cache/* /var/tmp/*
