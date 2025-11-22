@@ -46,7 +46,9 @@ def handler(job):
         # Get input
         job_input = job.get("input", {})
         images_b64 = job_input.get("images", [])
-        languages = job_input.get("languages", ["en"])
+        
+        # Note: Surya auto-detects languages - no language parameter needed
+        # The 'languages' input is accepted for API compatibility but not used
 
         if not images_b64:
             return {"success": False, "error": "No images provided"}
@@ -72,11 +74,9 @@ def handler(job):
                 print(f"✗ Image {idx+1} decode failed: {e}", flush=True)
                 return {"success": False, "error": f"Image {idx+1} decode failed: {str(e)}"}
 
-        # Run OCR
-        print(f"Processing {len(images)} image(s) with languages: {languages}", flush=True)
-        # Each image needs its own language list - replicate the languages list for each image
-        langs_per_image = [languages for _ in range(len(images))]
-        predictions = recognition_predictor(images, langs_per_image, det_predictor=detection_predictor)
+        # Run OCR - Surya automatically detects languages
+        print(f"Processing {len(images)} image(s) with auto language detection", flush=True)
+        predictions = recognition_predictor(images, det_predictor=detection_predictor)
         print(f"✓ OCR completed", flush=True)
 
         # Format results
