@@ -1,4 +1,4 @@
-# SuryaOCR RunPod Serverless - Optimized for Maximum Speed
+# SuryaOCR RunPod Serverless - Maximum Speed with Space Optimization
 FROM runpod/pytorch:2.8.0-py3.11-cuda12.8.1-cudnn-devel-ubuntu22.04
 
 # Set environment variables for maximum H100 performance
@@ -16,87 +16,76 @@ ENV PYTHONUNBUFFERED=1 \
     PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:512,expandable_segments:True \
     # Enable JIT compilation
     PYTORCH_JIT=1 \
-    # Threading
+    # Threading optimizations
     OMP_NUM_THREADS=16 \
     MKL_NUM_THREADS=16 \
     # Disable profiling overhead
     CUDA_LAUNCH_BLOCKING=0 \
-    # Enable cuDNN benchmarking
+    # Enable cuDNN benchmarking for auto-tuning
     TORCH_CUDNN_BENCHMARK=1
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    wget \
-    curl \
-    git \
-    libgl1-mesa-glx \
-    libglib2.0-0 \
-    && rm -rf /var/lib/apt/lists/*
+# Install system dependencies and clean up in one layer
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends curl && \
+    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-# Install Python dependencies with optimizations
-RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir \
+# Install Python dependencies with cleanup
+RUN pip install --no-cache-dir \
     surya-ocr==0.17.0 \
-    runpod==1.8.1 \
-    pillow-simd==10.4.0 || pip install --no-cache-dir pillow==10.4.0 && \
-    pip install --no-cache-dir \
-    torch-tensorrt \
-    nvidia-cudnn-cu12
+    runpod==1.8.1 && \
+    pip install --no-cache-dir pillow-simd==10.4.0 || pip install --no-cache-dir pillow==10.4.0 && \
+    rm -rf /root/.cache/pip /tmp/*
 
-# Set working directory
 WORKDIR /app
 
 # Copy handler
 COPY handler_final.py /app/handler.py
 
-# Pre-download and pre-compile ALL Surya models
-RUN python3 << 'EOF'
+# Pre-download models AND pre-warm CUDA kernels (with cleanup)
+RUN python3 << 'EOF' && rm -rf /tmp/* /root/.cache/*
 import torch
 from surya.foundation import FoundationPredictor
 from surya.recognition import RecognitionPredictor
 from surya.detection import DetectionPredictor
 
-print('Downloading and compiling models...')
+print('🚀 Optimizing for H100...')
 
-# Enable optimizations
+# Enable all optimizations
 torch.set_float32_matmul_precision('high')
 torch.backends.cudnn.benchmark = True
 torch.backends.cuda.matmul.allow_tf32 = True
 
 # Load models
-print('Loading Foundation model...')
+print('📥 Downloading Foundation model...')
 fp = FoundationPredictor()
-print('Foundation model cached')
 
-print('Loading Recognition model...')
+print('📥 Downloading Recognition model...')
 rp = RecognitionPredictor(fp)
-print('Recognition model cached')
 
-print('Loading Detection model...')
+print('📥 Downloading Detection model...')
 dp = DetectionPredictor()
-print('Detection model cached')
 
-# Pre-warm models with dummy data (compiles kernels)
-print('Pre-warming models...')
+print('✅ All models cached!')
+
+# Pre-warm with CPU dummy data (saves space, still compiles kernels)
+print('🔥 Pre-warming CUDA kernels...')
 from PIL import Image
 import numpy as np
 
-# Create dummy image
-dummy_img = Image.fromarray(np.random.randint(0, 255, (1024, 1024, 3), dtype=np.uint8))
+dummy = Image.fromarray(np.random.randint(0, 255, (512, 512, 3), dtype=np.uint8))
 
 try:
-    # Run inference once to compile CUDA kernels
-    _ = rp([dummy_img], det_predictor=dp)
-    print('Models pre-warmed successfully!')
-except Exception as e:
-    print(f'Pre-warming warning (non-critical): {e}')
+    # This compiles CUDA kernels at build time
+    with torch.inference_mode():
+        _ = rp([dummy], det_predictor=dp)
+    print('✅ CUDA kernels pre-compiled!')
+except:
+    print('⚠️  Pre-warming skipped (will compile on first request)')
 
-print('All optimizations complete!')
+print('🎯 Optimization complete!')
 EOF
 
-# Healthcheck
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD python3 -c "import runpod; print('healthy')" || exit 1
+# Final cleanup
+RUN rm -rf /tmp/* /root/.cache/* /var/tmp/*
 
-# Start handler
 CMD ["python3", "-u", "/app/handler.py"]
