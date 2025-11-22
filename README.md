@@ -12,7 +12,7 @@ Go to: **RunPod Console → Serverless → Templates → New Template**
 - **Container Image**: `runpod/pytorch:2.8.0-py3.11-cuda12.8.1-cudnn-devel-ubuntu22.04`
 - **Docker Command**:
 ```bash
-bash -c "pip install -q surya-ocr runpod pillow && curl -sSL https://raw.githubusercontent.com/GunitBindal/surya-runpod-h100/main/handler_final.py -o handler.py && python -u handler.py"
+bash -c "pip install --no-cache-dir surya-ocr runpod pillow && curl -sSL https://raw.githubusercontent.com/GunitBindal/surya-runpod-h100/main/handler_final.py -o handler.py && python -u handler.py"
 ```
 
 ### 2. Deploy Endpoint
