@@ -1,0 +1,1 @@
+bash -c "pip install -q surya-ocr runpod pillow && curl -sSL https://raw.githubusercontent.com/GunitBindal/surya-runpod-h100/main/handler_final.py -o handler.py && python -u handler.py"
