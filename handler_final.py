@@ -74,7 +74,7 @@ def handler(job):
 
         # Run OCR
         print(f"Processing {len(images)} image(s) with languages: {languages}", flush=True)
-        predictions = recognition_predictor(images, det_predictor=detection_predictor, langs=languages)
+        predictions = recognition_predictor(images, [languages] * len(images), det_predictor=detection_predictor)
         print(f"✓ OCR completed", flush=True)
 
         # Format results
