@@ -2,10 +2,17 @@ import runpod
 import base64
 import io
 import sys
+import torch
 from PIL import Image
 
 print("Starting SuryaOCR Handler...", flush=True)
 
+# Enable PyTorch optimizations
+torch.set_float32_matmul_precision('high')
+torch.backends.cudnn.benchmark = True
+torch.backends.cuda.matmul.allow_tf32 = True
+
+# Global model instances
 FOUNDATION_PREDICTOR = None
 RECOGNITION_PREDICTOR = None
 DETECTION_PREDICTOR = None
@@ -14,7 +21,7 @@ def initialize_models():
     global FOUNDATION_PREDICTOR, RECOGNITION_PREDICTOR, DETECTION_PREDICTOR
     
     if FOUNDATION_PREDICTOR is None:
-        print("Loading SuryaOCR models... This takes 60-90 seconds.", flush=True)
+        print("Loading SuryaOCR models... This takes 2-3 seconds with pre-cached models.", flush=True)
         try:
             from surya.foundation import FoundationPredictor
             from surya.recognition import RecognitionPredictor
